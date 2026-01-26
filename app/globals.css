@@ -59,19 +59,18 @@
   }
 }
 
-/* Modern Font Imports */
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap");
-
+/* Font classes using system fonts for better performance */
 .font-heading {
-  font-family: "Montserrat", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
 }
 
 .font-body {
-  font-family: "Poppins", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .font-display {
-  font-family: "Playfair Display", serif;
+  font-family: Georgia, "Times New Roman", serif;
 }
 
 /* Enhanced Animations */
