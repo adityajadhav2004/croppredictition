@@ -35,7 +35,7 @@ Be concise and practical.`
         "X-Title": "AgriSoil Crop Recommendation System",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-chat", // Using DeepSeek model
+        model: "nvidia/nemotron-3-super-120b-a12b:free", // Using DeepSeek model
         messages: [{ role: "user", content: masterPrompt }],
         temperature: 0.7,
         max_tokens: 500, // Reduced to save credits
