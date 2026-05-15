@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { InfoIcon, Leaf, Droplet, ThermometerIcon, Sprout, CloudRain, Brain, BarChart3 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import CropRecommendationChart from "./crop-recommendation-chart"
 import NutrientAnalysisChart from "./nutrient-analysis-chart"
 import DataCharts from "./data-charts"
@@ -87,37 +89,28 @@ export default function Results({ initialResults }: ResultsProps) {
     )
   }
 
-  // Format text content for display
-  const formatText = (text: string) => {
-    return text.split("\n").map((line, i) => {
-      if (line.trim() === "") return <br key={i} />
-      if (line.startsWith("##")) {
-        return (
-          <h3 key={i} className="text-lg font-medium mt-4 mb-2">
-            {line.replace("##", "").trim()}
-          </h3>
-        )
-      }
-      if (line.startsWith("- ")) {
-        return (
-          <li key={i} className="ml-6 list-disc my-1">
-            {line.replace("- ", "").trim()}
-          </li>
-        )
-      }
-      if (line.match(/^\d+\./)) {
-        return (
-          <li key={i} className="ml-6 list-decimal my-1">
-            {line.replace(/^\d+\./, "").trim()}
-          </li>
-        )
-      }
-      return (
-        <p key={i} className="my-2">
-          {line}
-        </p>
-      )
-    })
+  // Format text content for display using ReactMarkdown
+  const renderMarkdown = (text: string | null | undefined) => {
+    if (typeof text !== "string" || !text.trim()) {
+      return null
+    }
+
+    return (
+      <ReactMarkdown 
+        remarkPlugins={[remarkGfm]}
+        components={{
+          table: ({node, ...props}) => (
+            <div className="overflow-x-auto my-4 w-full">
+              <table className="w-full border-collapse border border-border text-sm" {...props} />
+            </div>
+          ),
+          th: ({node, ...props}) => <th className="border border-border bg-muted/50 p-2 font-medium text-left" {...props} />,
+          td: ({node, ...props}) => <td className="border border-border p-2" {...props} />,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    )
   }
 
   return (
@@ -307,7 +300,7 @@ export default function Results({ initialResults }: ResultsProps) {
                               {typeof (data as any).value === 'number' ? (data as any).value.toFixed(2) : (data as any).value} {nutrient === "ph" ? "" : "kg/ha"}
                             </span>
                           </span>
-                          {(data as any).min !== undefined && (data as any).max !== undefined && (data as any).min !== Infinity && (
+                          {typeof (data as any).min === 'number' && typeof (data as any).max === 'number' && (data as any).min !== Infinity && (
                             <span>
                               Range in data: <span className="font-medium">{(data as any).min.toFixed(1)} - {(data as any).max.toFixed(1)}</span>
                             </span>
@@ -386,7 +379,7 @@ export default function Results({ initialResults }: ResultsProps) {
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">AI Expert Analysis</h3>
                   <div className="prose prose-sm max-w-none dark:prose-invert bg-muted/20 p-4 rounded-lg">
-                    {formatText(results.soilHealthAssessment.detailedAnalysis)}
+                    {renderMarkdown(results.soilHealthAssessment.detailedAnalysis)}
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-4">
@@ -454,7 +447,7 @@ export default function Results({ initialResults }: ResultsProps) {
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">AI Expert Irrigation Analysis</h3>
                   <div className="prose prose-sm max-w-none dark:prose-invert bg-muted/20 p-4 rounded-lg">
-                    {formatText(results.irrigationRecommendation.recommendation)}
+                    {renderMarkdown(results.irrigationRecommendation.recommendation)}
                   </div>
                 </div>
 
@@ -529,7 +522,7 @@ export default function Results({ initialResults }: ResultsProps) {
             </CardHeader>
             <CardContent>
               <div className="prose prose-sm max-w-none dark:prose-invert bg-muted/20 p-4 rounded-lg">
-                {formatText(results.aiInsights)}
+                {renderMarkdown(results.aiInsights)}
               </div>
             </CardContent>
           </Card>

@@ -63,14 +63,18 @@ export default function UploadCSV() {
         header: true,
         skipEmptyLines: true,
         dynamicTyping: true,
-        complete: (results) => {
-          if (results.errors.length > 0) {
+        complete: (results: any) => {
+          // If we managed to extract valid rows, tolerate individual row errors
+          // instead of failing the entire file parsing.
+          if (results.data && results.data.length > 0) {
+            resolve(results.data)
+          } else if (results.errors.length > 0) {
             reject(results.errors)
           } else {
-            resolve(results.data)
+            resolve([])
           }
         },
-        error: (error) => {
+        error: (error: unknown) => {
           reject(error)
         },
       })
@@ -83,11 +87,16 @@ export default function UploadCSV() {
     P: ["p", "phosphorus", "phosphorous", "p_content", "phosphorus_content"],
     K: ["k", "potassium", "k_content", "potassium_content"],
     temperature: ["temp", "temperature", "temp_c", "temperature_c", "avg_temp"],
-    humidity: ["humidity", "humid", "moisture", "relative_humidity", "rh"],
+    humidity: ["humidity", "humid", "relative_humidity", "rh"],
     ph: ["ph", "soil_ph", "ph_level", "acidity"],
     rainfall: ["rainfall", "rain", "precipitation", "annual_rainfall", "r"],
     crop: ["crop", "crop_name", "plant", "crop_type"],
     yield: ["yield", "yield (tons/ha)", "production", "output", "harvest"],
+    moisture: ["soil_moisture(%)", "moisture", "soil moisture", "soil_moisture", "soil moisture(%)"],
+    soilType: ["soil_type", "soil type", "soiltype"],
+    district: ["district", "location", "city", "region"],
+    timestamp: ["timestamp", "time", "date"],
+    irrigationDuration: ["irrigation_duration(min)", "irrigation_duration", "irrigation duration", "irrigation time"],
   }
 
   // Function to find the matching column in the data
@@ -113,7 +122,7 @@ export default function UploadCSV() {
     const missingColumns: string[] = []
 
     // Try to find each standard column
-    const standardColumns = ["N", "P", "K", "temperature", "humidity", "ph", "rainfall", "crop", "yield"]
+    const standardColumns = ["N", "P", "K", "temperature", "humidity", "ph", "rainfall", "crop", "yield", "moisture", "soilType", "district", "timestamp", "irrigationDuration"]
 
     for (const stdCol of standardColumns) {
       const foundCol = findColumn(firstRow, stdCol)
@@ -163,11 +172,12 @@ export default function UploadCSV() {
     const hasNPK = detectedColumns.N && detectedColumns.P && detectedColumns.K
     const hasCropData = detectedColumns.crop
     const hasAnyNutrient = detectedColumns.N || detectedColumns.P || detectedColumns.K
+    const hasSensorData = detectedColumns.moisture || detectedColumns.soilType || detectedColumns.district || detectedColumns.timestamp
 
-    if (!hasNPK && !hasCropData && !hasAnyNutrient) {
+    if (!hasNPK && !hasCropData && !hasAnyNutrient && !hasSensorData) {
       return {
         valid: false,
-        message: "Could not detect required columns. Please ensure your CSV has at least N, P, K columns or crop data."
+        message: "Could not detect required columns. Please ensure your CSV has at least N, P, K columns, crop data, or environmental sensor data (like moisture, soil type)."
       }
     }
 
@@ -250,7 +260,8 @@ export default function UploadCSV() {
       }
 
       const data = await response.json()
-      return data.choices[0].message.content
+      const content = data?.choices?.[0]?.message?.content
+      return typeof content === "string" ? content : ""
     } catch (error) {
       console.error("OpenRouter API error:", error)
       throw error
@@ -273,13 +284,17 @@ export default function UploadCSV() {
 
     // Extract soil parameters (with fallbacks for missing data)
     const soilParameters = {
-      nitrogen: getValue('N'),
-      phosphorus: getValue('P'),
-      potassium: getValue('K'),
+      nitrogen: getValue('N', 40),
+      phosphorus: getValue('P', 20),
+      potassium: getValue('K', 30),
       temperature: getValue('temperature', 25),
       humidity: getValue('humidity', 60),
       ph: getValue('ph', 7),
       rainfall: getValue('rainfall', 100),
+      moisture: getValue('moisture', 50),
+      soilType: row.soilType || 'loamy',
+      district: row.district || 'Unknown',
+      irrigationDuration: getValue('irrigationDuration', 0),
       crop: row.crop || null,
       yield: getValue('yield'),
     }
@@ -447,7 +462,7 @@ export default function UploadCSV() {
 
       // Segment 2: AI Irrigation Analysis (shortened prompt)
       updateProgress("ai_irrigation")
-      const irrigationPrompt = `Briefly provide irrigation recommendations: water needs, scheduling, and best irrigation method.`
+      const irrigationPrompt = ` provide short glimpse irrigation recommendations: water needs, scheduling, and best irrigation method.`
 
       aiIrrigation = await callOpenRouterAPI(irrigationPrompt, soilParameters)
 
@@ -837,7 +852,7 @@ export default function UploadCSV() {
       )}
 
       {aiWarning && (
-        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+        <Alert variant="default" className="bg-amber-50 border-amber-200">
           <Info className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800">AI Analysis Partially Available</AlertTitle>
           <AlertDescription className="text-amber-700">
